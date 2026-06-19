@@ -12,35 +12,29 @@ import (
 	"mundialbot/internal/football"
 	"mundialbot/internal/format"
 	"mundialbot/internal/llm"
-	"mundialbot/internal/news"
 	"mundialbot/internal/store"
 	"mundialbot/internal/telegram"
 )
 
 type Scheduler struct {
-	cfg  *config.Config
-	st   *store.Store
-	fb   *football.Client
-	ai   *llm.Client
-	tg   *telegram.Client
-	news *news.Fetcher
+	cfg *config.Config
+	st  *store.Store
+	fb  *football.Client
+	ai  *llm.Client
+	tg  *telegram.Client
 
 	lastLivePoll time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, fb *football.Client, ai *llm.Client, tg *telegram.Client, nf *news.Fetcher) *Scheduler {
-	return &Scheduler{cfg: cfg, st: st, fb: fb, ai: ai, tg: tg, news: nf}
+func New(cfg *config.Config, st *store.Store, fb *football.Client, ai *llm.Client, tg *telegram.Client) *Scheduler {
+	return &Scheduler{cfg: cfg, st: st, fb: fb, ai: ai, tg: tg}
 }
 
 func (s *Scheduler) Run(ctx context.Context) {
 	s.dailySyncIfNeeded(ctx)
 
 	tick := time.NewTicker(1 * time.Minute)
-	newsTick := time.NewTicker(30 * time.Minute)
 	defer tick.Stop()
-	defer newsTick.Stop()
-
-	go s.pollNews(ctx)
 
 	for {
 		select {
@@ -51,8 +45,6 @@ func (s *Scheduler) Run(ctx context.Context) {
 			s.maybePollLive(ctx)
 			s.maybePreMatch(ctx)
 			s.maybeDigest(ctx)
-		case <-newsTick.C:
-			s.pollNews(ctx)
 		}
 	}
 }
@@ -116,8 +108,9 @@ func (s *Scheduler) broadcastResult(ctx context.Context, f store.Fixture) {
 	if standings, err := s.fb.Standings(ctx); err == nil && len(standings) > 0 {
 		s.st.SetStandings(standings)
 	}
+	g, hasGroup := s.st.GroupForTeam(f.HomeID, f.Home)
 	groupTable := "غير متوفر"
-	if g, ok := s.st.GroupForTeam(f.HomeID, f.Home); ok {
+	if hasGroup {
 		groupTable = format.GroupTablePlain(g)
 	}
 
@@ -133,6 +126,9 @@ func (s *Scheduler) broadcastResult(ctx context.Context, f store.Fixture) {
 	}
 	if analysis != "" {
 		msg += "\n\n🧠 <b>التحليل وحسابات التأهل:</b>\n" + telegram.EscapeHTML(analysis)
+	}
+	if hasGroup {
+		msg += "\n\n📊 <b>ترتيب المجموعة بعد المباراة:</b>\n" + format.GroupTableHTML(g)
 	}
 
 	s.broadcastChannel(ctx, msg)
@@ -173,40 +169,6 @@ func (s *Scheduler) maybeDigest(ctx context.Context) {
 	}
 	sb.WriteString("\nبالتوفيق لمنتخباتكم! 🏆")
 	s.broadcastChannel(ctx, strings.TrimSpace(sb.String()))
-}
-
-func (s *Scheduler) pollNews(ctx context.Context) {
-	if len(s.cfg.NewsFeeds) == 0 {
-		return
-	}
-	items := s.news.Fetch(ctx)
-	const maxPerCycle = 3
-	sent := 0
-	for _, it := range items {
-		if sent >= maxPerCycle {
-			break
-		}
-		if s.st.NewsSeen(it.ID) {
-			continue
-		}
-		s.st.MarkNews(it.ID)
-
-		blurb := it.Snippet
-		if s.cfg.NewsSummarize {
-			if sum, err := s.ai.Summarize(ctx, it.Title, it.Snippet); err == nil && sum != "" {
-				blurb = sum
-			}
-		}
-		msg := "📰 <b>" + telegram.EscapeHTML(it.Title) + "</b>"
-		if blurb != "" {
-			msg += "\n" + telegram.EscapeHTML(blurb)
-		}
-		if it.Link != "" {
-			msg += "\n🔗 " + telegram.EscapeHTML(it.Link)
-		}
-		s.broadcastChannel(ctx, msg)
-		sent++
-	}
 }
 
 func (s *Scheduler) broadcastChannel(ctx context.Context, html string) {

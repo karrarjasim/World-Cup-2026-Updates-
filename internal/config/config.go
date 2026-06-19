@@ -32,10 +32,6 @@ type Config struct {
 
 	DigestHour int
 
-	NewsFeeds        []string
-	NewsSummarize    bool
-	NewsWorldCupOnly bool
-
 	LivePollSeconds int
 }
 
@@ -43,20 +39,18 @@ func Load() (*Config, error) {
 	loadDotEnv(".env")
 
 	c := &Config{
-		TelegramToken:    os.Getenv("TELEGRAM_TOKEN"),
-		ChannelID:        strings.TrimSpace(os.Getenv("CHANNEL_ID")),
-		FootballKey:      os.Getenv("FOOTBALL_API_KEY"),
-		FootballBaseURL:  envOr("FOOTBALL_BASE_URL", "https://site.api.espn.com"),
-		LLMKey:           envOr("LLM_API_KEY", os.Getenv("GEMINI_API_KEY")),
-		LLMModel:         envOr("LLM_MODEL", envOr("GEMINI_MODEL", "llama-3.3-70b-versatile")),
-		LLMBaseURL:       envOr("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
-		DataDir:          envOr("DATA_DIR", "./data"),
-		LeagueID:         envIntOr("LEAGUE_ID", 0),
-		Season:           envIntOr("SEASON", 2026),
-		DigestHour:       envIntOr("DIGEST_HOUR", 9),
-		LivePollSeconds:  envIntOr("LIVE_POLL_SECONDS", 240),
-		NewsSummarize:    envOr("NEWS_SUMMARIZE", "false") == "true",
-		NewsWorldCupOnly: envOr("NEWS_WORLDCUP_ONLY", "false") == "true",
+		TelegramToken:   os.Getenv("TELEGRAM_TOKEN"),
+		ChannelID:       strings.TrimSpace(os.Getenv("CHANNEL_ID")),
+		FootballKey:     os.Getenv("FOOTBALL_API_KEY"),
+		FootballBaseURL: envOr("FOOTBALL_BASE_URL", "https://site.api.espn.com"),
+		LLMKey:          envOr("LLM_API_KEY", os.Getenv("GEMINI_API_KEY")),
+		LLMModel:        envOr("LLM_MODEL", envOr("GEMINI_MODEL", "llama-3.3-70b-versatile")),
+		LLMBaseURL:      envOr("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+		DataDir:         envOr("DATA_DIR", "./data"),
+		LeagueID:        envIntOr("LEAGUE_ID", 0),
+		Season:          envIntOr("SEASON", 2026),
+		DigestHour:      envIntOr("DIGEST_HOUR", 9),
+		LivePollSeconds: envIntOr("LIVE_POLL_SECONDS", 240),
 	}
 
 	tz := envOr("TZ", "Asia/Baghdad")
@@ -70,14 +64,6 @@ func Load() (*Config, error) {
 		c.AdminChatID, _ = strconv.ParseInt(v, 10, 64)
 	}
 
-	if feeds := os.Getenv("NEWS_FEEDS"); feeds != "" {
-		for _, f := range strings.Split(feeds, ",") {
-			if f = strings.TrimSpace(f); f != "" {
-				c.NewsFeeds = append(c.NewsFeeds, f)
-			}
-		}
-	}
-
 	if c.TelegramToken == "" {
 		return nil, errors.New("TELEGRAM_TOKEN is required")
 	}
@@ -85,10 +71,7 @@ func Load() (*Config, error) {
 		log.Println("warning: no LLM_API_KEY set — AI analysis and chat answers will be disabled (scores, standings, reminders still work)")
 	}
 	if c.ChannelID == "" {
-		log.Println("warning: no CHANNEL_ID set — automatic updates (results, digest, news) have nowhere to post")
-	}
-	if len(c.NewsFeeds) == 0 {
-		log.Println("warning: no NEWS_FEEDS set — news updates are disabled")
+		log.Println("warning: no CHANNEL_ID set — automatic updates have nowhere to post")
 	}
 	return c, nil
 }

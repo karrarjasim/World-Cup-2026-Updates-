@@ -109,12 +109,6 @@ func (b *Bot) handleCommand(ctx context.Context, chatID int64, name, text string
 		favs := splitTeams(arg)
 		b.st.SetFavorites(chatID, favs)
 		b.reply(ctx, chatID, "تم تحديث فرقك المفضلة ✅: <b>"+telegram.EscapeHTML(strings.Join(favs, "، "))+"</b>\nستصلك تذكيرات قبل مبارياتها.")
-	case "news_off":
-		b.st.SetNotify(chatID, "news", false)
-		b.reply(ctx, chatID, "تم إيقاف إشعارات الأخبار 🔕")
-	case "news_on":
-		b.st.SetNotify(chatID, "news", true)
-		b.reply(ctx, chatID, "تم تفعيل إشعارات الأخبار 🔔")
 	case "stop", "الغاء":
 		b.st.RemoveUser(chatID)
 		b.reply(ctx, chatID, "تم إلغاء اشتراكك. يمكنك العودة في أي وقت بالضغط على /start. 👋")
@@ -144,8 +138,8 @@ func welcome(name string) string {
 		"أهلاً بك في <b>مساعد المونديال 2026</b> ⚽\n" +
 		"كل التحديثات التلقائية تُنشر في قناتنا:\n" +
 		"🏁 نتائج المباريات فور انتهائها مع تحليل ذكي\n" +
-		"📅 ملخص يومي بمباريات اليوم\n" +
-		"📰 أهم وأعجل الأخبار الرياضية\n\n" +
+		"📊 ترتيب المجموعة المحدّث بعد كل مباراة\n" +
+		"📅 ملخص يومي بمباريات اليوم\n\n" +
 		"وهنا يمكنك سؤالي مباشرةً في أي وقت، مثل:\n" +
 		"«منو متصدر المجموعة A؟» أو <code>/today</code> لمباريات اليوم.\n\n" +
 		"اكتب /help لعرض كل الأوامر."
@@ -156,7 +150,7 @@ func helpText() string {
 		"/today — مباريات اليوم\n" +
 		"/standings — ترتيب المجموعات\n" +
 		"/next [منتخب] — موعد المباراة القادمة لمنتخب\n\n" +
-		"📢 النتائج والأخبار والملخص اليومي تُنشر تلقائياً في القناة.\n" +
+		"📢 النتائج والتحليل وترتيب المجموعات تُنشر تلقائياً في القناة.\n" +
 		"كما يمكنك سؤالي مباشرة بالعربية عن أي شيء يخص البطولة! 🧠"
 }
 

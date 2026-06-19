@@ -13,7 +13,6 @@ import (
 	"mundialbot/internal/config"
 	"mundialbot/internal/football"
 	"mundialbot/internal/llm"
-	"mundialbot/internal/news"
 	"mundialbot/internal/scheduler"
 	"mundialbot/internal/store"
 	"mundialbot/internal/telegram"
@@ -35,11 +34,9 @@ func main() {
 	tg := telegram.New(cfg.TelegramToken)
 	fb := football.New(cfg.FootballBaseURL, cfg.FootballKey, cfg.LeagueID, cfg.Season)
 	ai := llm.New(cfg.LLMBaseURL, cfg.LLMKey, cfg.LLMModel)
-	nf := news.New(cfg.NewsFeeds, cfg.NewsWorldCupOnly)
-
 	as := assistant.New(st, ai, cfg.Location)
 	b := bot.New(cfg, tg, st, as)
-	sch := scheduler.New(cfg, st, fb, ai, tg, nf)
+	sch := scheduler.New(cfg, st, fb, ai, tg)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

@@ -2,9 +2,9 @@
 
 A fully automated Telegram bot that tracks the FIFA World Cup 2026 and posts
 everything to a Telegram **channel**: live results with AI analysis the moment a
-match ends, a daily morning fixtures digest, pre-match reminders, and breaking
-Arabic sports news. Users can also chat with the bot directly to ask about
-fixtures, standings, and more.
+match ends, the updated group standings right after each result, a daily morning
+fixtures digest, and pre-match reminders. Users can also chat with the bot
+directly to ask about fixtures, standings, and more.
 
 Written in **Go** with the standard library only (no external dependencies), so
 it builds and runs in seconds.
@@ -32,7 +32,7 @@ match's finish window:
                     ▼
 [ Refresh standings → send result + group table to the LLM ]
                     ▼
-[ Generate analysis → post the result to the Telegram channel ]
+[ Generate analysis → post result + analysis + updated group standings to the channel ]
 ```
 
 Sent events are persisted to disk (JSON), so results never repeat — even after
@@ -50,8 +50,7 @@ a restart.
 | `internal/llm` | OpenAI-compatible chat client for analysis and answers |
 | `internal/telegram` | Telegram Bot API client (channel posting + safe broadcast) |
 | `internal/assistant` | Local intent routing + LLM answers grounded in live context |
-| `internal/news` | RSS/Atom fetching, optional World Cup filtering, dedup |
-| `internal/scheduler` | The engine: sync, poll, broadcast, reminders, digest, news |
+| `internal/scheduler` | The engine: sync, poll, broadcast results + standings, reminders, digest |
 | `internal/bot` | Telegram update loop + commands |
 
 ---
@@ -87,9 +86,6 @@ cp .env.example .env
 | `DIGEST_HOUR` | Local hour (0–23) for the daily digest | `9` |
 | `LIVE_POLL_SECONDS` | Poll interval inside match finish windows | `240` |
 | `ADMIN_CHAT_ID` | Chat id for startup/error pings (optional) | — |
-| `NEWS_FEEDS` | Comma-separated RSS/Atom feed URLs | empty (news off) |
-| `NEWS_WORLDCUP_ONLY` | Only forward World-Cup-related headlines | `false` |
-| `NEWS_SUMMARIZE` | Rewrite each headline into a short blurb via the LLM | `false` |
 
 ---
 
@@ -135,9 +131,10 @@ crash or server reboot.
 | `/next <team>` | Next match for a team |
 | `/stop` | Stop the conversation |
 
-> 📢 All automatic updates (results, daily digest, news, pre-match reminders)
-> are posted to the channel set by `CHANNEL_ID` — not to private chats. The bot
-> itself remains available to answer questions on demand.
+> 📢 All automatic updates (results + analysis, updated group standings, daily
+> digest, pre-match reminders) are posted to the channel set by `CHANNEL_ID` —
+> not to private chats. The bot itself remains available to answer questions on
+> demand.
 
 You can also ask the bot directly in Arabic, e.g. "who leads Group A?" or
 "when does Iraq play next?".
