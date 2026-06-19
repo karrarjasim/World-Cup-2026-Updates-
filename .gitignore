@@ -1,0 +1,7 @@
+/data/
+*.env
+.env
+mundialbot
+mundialbot-*
+*.bak
+/tmp/

@@ -1,0 +1,20 @@
+[Unit]
+Description=Mundial Bot - World Cup 2026 Telegram Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mundial
+WorkingDirectory=/opt/mundialbot
+EnvironmentFile=/opt/mundialbot/.env
+ExecStart=/opt/mundialbot/mundialbot
+Restart=always
+RestartSec=5
+# Harden
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/mundialbot/data
+
+[Install]
+WantedBy=multi-user.target
