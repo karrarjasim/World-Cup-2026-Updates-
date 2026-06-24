@@ -56,6 +56,7 @@ func Load() (*Config, error) {
 	tz := envOr("TZ", "Asia/Baghdad")
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
+		log.Printf("warning: could not load timezone %q (%v) — falling back to UTC; all announced match times will be wrong. Set a valid TZ.", tz, err)
 		loc = time.UTC
 	}
 	c.Location = loc

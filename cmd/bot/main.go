@@ -8,6 +8,13 @@ import (
 	"syscall"
 	"time"
 
+	// Embed the IANA timezone database in the binary so time.LoadLocation
+	// (e.g. "Asia/Baghdad") always works, even on servers/containers that
+	// ship without /usr/share/zoneinfo. Without this the bot silently falls
+	// back to UTC and every announced kickoff is 3h early (wrong day for
+	// late-night matches).
+	_ "time/tzdata"
+
 	"mundialbot/internal/assistant"
 	"mundialbot/internal/bot"
 	"mundialbot/internal/config"
