@@ -108,13 +108,25 @@ func (s *Scheduler) broadcastResult(ctx context.Context, f store.Fixture) {
 	if standings, err := s.fb.Standings(ctx); err == nil && len(standings) > 0 {
 		s.st.SetStandings(standings)
 	}
-	g, hasGroup := s.st.GroupForTeam(f.HomeID, f.Home)
-	groupTable := "غير متوفر"
-	if hasGroup {
-		groupTable = format.GroupTablePlain(g)
-	}
+	groupStage := isGroupStage(f.Round)
 
-	analysis, err := s.ai.AnalyzeResult(ctx, format.ResultLineAR(f), groupTable)
+	// Only group-stage matches show the group table and group-based qualification
+	// analysis. Once the group stage is over, knockout matches must not reuse the
+	// stale standings, so they get a knockout-focused analysis instead.
+	g, hasGroup := s.st.GroupForTeam(f.HomeID, f.Home)
+	showGroup := groupStage && hasGroup
+
+	var analysis string
+	var err error
+	if groupStage {
+		groupTable := "غير متوفر"
+		if hasGroup {
+			groupTable = format.GroupTablePlain(g)
+		}
+		analysis, err = s.ai.AnalyzeResult(ctx, format.ResultLineAR(f), groupTable)
+	} else {
+		analysis, err = s.ai.AnalyzeKnockoutResult(ctx, format.ResultLineAR(f), translateRound(f.Round))
+	}
 	if err != nil {
 		log.Printf("analysis failed for %d: %v", f.ID, err)
 		analysis = ""
@@ -125,9 +137,13 @@ func (s *Scheduler) broadcastResult(ctx context.Context, f store.Fixture) {
 		msg += "\n🏆 " + telegram.EscapeHTML(translateRound(r))
 	}
 	if analysis != "" {
-		msg += "\n\n🧠 <b>التحليل وحسابات التأهل:</b>\n" + telegram.EscapeHTML(analysis)
+		label := "التحليل"
+		if groupStage {
+			label = "التحليل وحسابات التأهل"
+		}
+		msg += "\n\n🧠 <b>" + label + ":</b>\n" + telegram.EscapeHTML(analysis)
 	}
-	if hasGroup {
+	if showGroup {
 		msg += "\n\n📊 <b>ترتيب المجموعة بعد المباراة:</b>\n" + format.GroupTableHTML(g)
 	}
 
@@ -158,7 +174,16 @@ func (s *Scheduler) maybeDigest(ctx context.Context) {
 	}
 	s.st.MetaSet("last_digest", day)
 
-	todays := s.st.FixturesOnLocalDay(nowLocal, s.cfg.Location)
+	now := time.Now()
+	var todays []store.Fixture
+	for _, f := range s.st.FixturesOnLocalDay(nowLocal, s.cfg.Location) {
+		// Only matches that haven't kicked off yet — the digest lists today's
+		// upcoming fixtures, not ones already played or in progress.
+		if f.Finished() || f.Live() || !f.Kickoff.After(now) {
+			continue
+		}
+		todays = append(todays, f)
+	}
 	if len(todays) == 0 {
 		return
 	}
@@ -178,6 +203,13 @@ func (s *Scheduler) broadcastChannel(ctx context.Context, html string) {
 	if err := s.tg.SendChannel(ctx, s.cfg.ChannelID, html); err != nil {
 		log.Printf("channel post failed: %v", err)
 	}
+}
+
+// isGroupStage reports whether a fixture's round belongs to the group phase.
+// API-Football labels World Cup group matches as "Group Stage - N"; everything
+// else (Round of 16, quarter-finals, …) is knockout.
+func isGroupStage(round string) bool {
+	return strings.Contains(strings.ToLower(round), "group")
 }
 
 func translateRound(r string) string {
